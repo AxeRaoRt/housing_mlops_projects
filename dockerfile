@@ -1,19 +1,20 @@
-FROM python:3.12-slim
-
-# Installer uv 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+FROM python:3.9-slim
 
 WORKDIR /app
 
 COPY requirements.txt .
 
-# Installation des de2pendances avec uv
-RUN uv pip install --system --no-cache -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY . . 
 
-RUN mkdir -p models mlartifacts mlruns
+RUN mkdir -p models mlruns mlartifacts
+
+# Rendre le script exécutable
+RUN chmod +x entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+CMD ["./entrypoint.sh"]

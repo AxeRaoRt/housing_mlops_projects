@@ -57,15 +57,20 @@ def train_model():
         mlflow.log_metric("R2_Score", r2)
 
         # sauvegarde du modele et le scaler
+        # mlflow.sklearn.log_model(
+        #     sk_model=model
+        # )
+        # joblib.dump(scaler, 'models/scaler.pkl')
+        # mlflow.log_artifact('models/scaler.pkl')
+        
+        joblib.dump(scaler, "models/scaler.pkl")
+        mlflow.log_artifact("models/scaler.pkl", artifact_path="preprocess")
+        
         mlflow.sklearn.log_model(
-            sk_model=model,
-            name="rf_model",
-            registered_model_name="CaliforniaHousingRF"
-        )
-
-        os.makedirs('models', exist_ok=True)
-        joblib.dump(scaler, 'models/scaler.pkl')
-        mlflow.log_artifact('models/scaler.pkl')
+        sk_model=model,
+        name="rf_model",                       # MLflow 3: name
+        registered_model_name="CaliforniaHousingRF"
+    )
 
         print(f"MAE: {mae:.4f}")
         print(f"R² Score: {r2:.4f}")

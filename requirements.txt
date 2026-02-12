@@ -1,0 +1,13 @@
+pandas
+scikit-learn
+mlflow
+fastapi
+uvicorn
+pydantic
+joblib
+pytest
+pytest-cov
+streamlit
+plotly
+scipy
+requests

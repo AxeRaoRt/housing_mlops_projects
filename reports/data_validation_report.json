@@ -1,0 +1,33 @@
+{
+  "timestamp_utc": "2026-02-15T09:23:32.881154Z",
+  "rows": 284807,
+  "cols": 31,
+  "checks": {
+    "missing_columns": [],
+    "extra_columns": [],
+    "null_total": 0,
+    "null_counts_top": {
+      "Time": 0,
+      "V1": 0,
+      "V2": 0,
+      "V3": 0,
+      "V4": 0,
+      "V5": 0,
+      "V6": 0,
+      "V7": 0,
+      "V8": 0,
+      "V9": 0
+    },
+    "non_numeric_columns": [],
+    "negative_amount_count": 0,
+    "negative_time_count": 0,
+    "target_unique_values": [
+      0,
+      1
+    ],
+    "fraud_rate": 0.001727485630620034,
+    "passed": true
+  },
+  "errors": [],
+  "warnings": []
+}

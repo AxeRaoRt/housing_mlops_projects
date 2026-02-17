@@ -1,10 +1,10 @@
 {
   "model_version": "v1",
-  "trained_at_utc": "2026-02-14T06:39:58.772068Z",
+  "trained_at_utc": "2026-02-17T20:35:10.509805Z",
   "seed": 42,
   "rows_train": 227845,
   "rows_test": 56962,
-  "train_seconds": 1.1550803184509277,
+  "train_seconds": 1.4223523139953613,
   "roc_auc": 0.9720834996210077,
   "pr_auc": 0.7189705771419241,
   "confusion_matrix": [

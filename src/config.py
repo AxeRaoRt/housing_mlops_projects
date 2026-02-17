@@ -12,3 +12,8 @@ class Settings:
     target_col: str = os.getenv("TARGET_COL", "Class")
     time_col: str = os.getenv("TIME_COL", "Time")
     amount_col: str = os.getenv("AMOUNT_COL", "Amount")
+
+    # MLflow
+    mlflow_tracking_uri: str = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    mlflow_experiment_name: str = os.getenv("MLFLOW_EXPERIMENT_NAME", "fraud-detection")
+    mlflow_registered_model_name: str = os.getenv("MLFLOW_MODEL_NAME", "fraud-model")

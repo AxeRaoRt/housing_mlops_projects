@@ -13,6 +13,9 @@ pydantic==2.8.2
 prometheus-client==0.20.0
 python-json-logger==2.0.7
 
+# Experiment tracking
+mlflow
+
 # Utilities
 python-dotenv==1.0.1
 scipy==1.14.1

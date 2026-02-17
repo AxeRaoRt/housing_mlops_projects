@@ -17,6 +17,7 @@ import streamlit as st
 API_URL = os.getenv("API_URL", "http://localhost:8001")
 PRED_ENDPOINT = f"{API_URL}/predict"
 HEALTH_ENDPOINT = f"{API_URL}/health"
+MLFLOW_URL = os.getenv("MLFLOW_URL", "http://localhost:5001")
 
 ASSETS_DIR = Path(__file__).parent / "assets"
 DATA_PATH = Path(__file__).parent.parent / "data" / "creditcard.csv"
@@ -564,6 +565,64 @@ with right:
 st.write("")
 
 # -----------------------------
+# MLflow Model Registry Info
+# -----------------------------
+st.markdown("<div class='card'><h3>🔬 MLflow Model Registry</h3>", unsafe_allow_html=True)
+
+mlflow_col1, mlflow_col2 = st.columns([1, 1])
+
+with mlflow_col1:
+    try:
+        # Query MLflow REST API for registered model info
+        mlflow_api = f"{MLFLOW_URL}/api/2.0/mlflow/registered-models/get-latest-versions"
+        r_ml = requests.post(mlflow_api, json={"name": "fraud-model"}, timeout=3)
+        if r_ml.status_code == 200:
+            versions = r_ml.json().get("model_versions", [])
+            if versions:
+                for mv in versions:
+                    stage = mv.get("current_stage", mv.get("aliases", ["—"]))
+                    ver = mv.get("version", "?")
+                    status = mv.get("status", "?")
+                    created = mv.get("creation_timestamp", 0)
+                    run_id = mv.get("run_id", "—")
+
+                    if isinstance(created, int) and created > 0:
+                        dt = datetime.fromtimestamp(created / 1000)
+                        created_str = dt.strftime("%Y-%m-%d %H:%M")
+                    else:
+                        created_str = "—"
+
+                    st.markdown(
+                        f"**Version {ver}** — Stage: `{stage}` — Status: `{status}`"
+                    )
+                    st.caption(f"Created: {created_str} | Run ID: `{run_id[:12]}…`")
+            else:
+                st.caption("No model versions registered yet.")
+        else:
+            st.caption(f"MLflow API returned {r_ml.status_code}")
+    except Exception as e:
+        st.caption(f"MLflow not reachable: {e}")
+
+with mlflow_col2:
+    st.markdown(f"[Open MLflow UI ↗]({MLFLOW_URL})")
+    st.caption("Track experiments, compare runs, manage model stages.")
+
+    # Show health load_source if available
+    try:
+        r_h = requests.get(HEALTH_ENDPOINT, timeout=3)
+        if r_h.status_code == 200:
+            data_h = r_h.json()
+            load_src = data_h.get("load_source", "unknown")
+            mv = data_h.get("model_version", "—")
+            st.info(f"API model: **{mv}** (source: `{load_src}`)")
+    except Exception:
+        pass
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+st.write("")
+
+# -----------------------------
 # Input + Predict
 # -----------------------------
 c1, c2 = st.columns([1.3, 1])
@@ -648,6 +707,6 @@ if CARDS_BOTTOM or PAY_HAND:
 
 st.write("")
 st.markdown(
-    "<p class='small-muted'>© AI Fraud Detection — Streamlit + FastAPI + Prometheus + Grafana</p>",
+    "<p class='small-muted'>© AI Fraud Detection — Streamlit + FastAPI + MLflow + Prometheus + Grafana</p>",
     unsafe_allow_html=True,
 )

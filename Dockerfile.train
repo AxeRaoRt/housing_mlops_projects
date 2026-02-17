@@ -1,0 +1,61 @@
+# FROM python:3.10-slim
+
+# WORKDIR /app
+
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
+
+# COPY . .
+
+# # MLflow tracking URI — override at runtime via docker-compose or CLI
+# ENV MLFLOW_TRACKING_URI=http://mlflow:5000
+# ENV MLFLOW_EXPERIMENT_NAME=fraud-detection
+# ENV MLFLOW_MODEL_NAME=fraud-model
+
+# ENTRYPOINT ["python", "-m", "src.train"]
+
+
+
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Dépendances système
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Dépendances Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Code source — uniquement ce qui est nécessaire au training
+COPY src/ src/
+COPY data/ data/
+
+ENV GIT_PYTHON_REFRESH=quiet
+
+# Dossiers de sortie
+RUN mkdir -p models reports
+
+# Variables d'environnement MLflow
+ENV MLFLOW_TRACKING_URI=http://mlflow:5000
+ENV PYTHONUNBUFFERED=1
+
+# Le dataset sera monté en volume, pas copié dans l'image
+# docker run -v $(pwd)/data:/app/data ...
+VOLUME ["/app/data", "/app/models"]
+
+ENTRYPOINT ["python", "-m", "src.train"]
+
+
+# # Lancer l'API + MLflow (permanent)
+# docker compose up -d
+
+# # Lancer un entraînement (ponctuel)
+# docker compose run --rm train --model-version v2
+
+# # Ou avec le profile
+# docker compose --profile train up train

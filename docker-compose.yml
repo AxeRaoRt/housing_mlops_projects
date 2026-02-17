@@ -1,19 +1,60 @@
-version: "3.8"
+# version: "3.8"
 
 services:
+  # ---------- MLflow Tracking Server ----------
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: fraud-mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --allowed-hosts '*'
+      --default-artifact-root /mlflow/artifacts
+    ports:
+      - "5001:5000"
+    volumes:
+      - mlflow_data:/mlflow
+
+  # ---------- FastAPI Inference ----------
   api:
     build:
       context: .
       dockerfile: Dockerfile.infer
     container_name: fraud-api
     environment:
-      - MODEL_PATH=models/model_v1.joblib
-      - SCHEMA_PATH=models/model_v1_schema.json
+      # MLflow-first model loading (comment out MODEL_PATH to use MLflow)
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_MODEL_NAME=fraud-model
+      # - MLFLOW_MODEL_STAGE=Production
+      # Local fallback (uncomment to bypass MLflow)
+      # - MODEL_PATH=models/model_v1.joblib
+      # - SCHEMA_PATH=models/model_v1_schema.json
       - MODEL_VERSION=v1
       - PRED_THRESHOLD=0.01
       - LOG_LEVEL=INFO
     ports:
-      - "8001:8000"
+      - "8001:8001"
+    depends_on:
+      - mlflow
+    volumes:
+      - mlflow_data:/mlflow 
+
+  # --- Tourne 1 fois puis s'arrête ---
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    volumes:
+      - ./data:/app/data        # Monte le dataset
+      - ./models:/app/models    # Récupère le modèle local
+      - mlflow_data:/mlflow 
+    depends_on:
+      - mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    profiles: ["train"]  # Ne démarre PAS par dqéfaut
 
   prometheus:
     image: prom/prometheus:v2.54.0
@@ -41,3 +82,9 @@ services:
 
 volumes:
   grafana_data:
+  mlflow_data:
+
+
+
+
+# docker compose --profile train up

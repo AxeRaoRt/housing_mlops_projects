@@ -3,7 +3,11 @@ import os
 import time
 import json
 import logging
+import warnings
 from datetime import datetime
+
+# Suppress Pydantic protected namespace warning from MLflow internals
+warnings.filterwarnings("ignore", message="Field \"model_.*\" has conflict with protected namespace")
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
@@ -11,7 +15,13 @@ from fastapi.responses import Response
 from pythonjsonlogger import jsonlogger
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
-from src.io_utils import load_json, load_model
+from src.io_utils import (
+    load_json,
+    load_model,
+    _mlflow_available,
+    load_model_from_mlflow,
+    load_artifact_json_from_mlflow,
+)
 from api.schemas import PredictRequest, PredictResponse
 
 
@@ -40,27 +50,116 @@ FRAUD_PREDICTIONS_TOTAL = Counter(
 # ---------- App + model loading ----------
 app = FastAPI(title="Fraud Detection API", version="1.0.0")
 
-MODEL_PATH = os.getenv("MODEL_PATH", "models/model_v1.joblib")
-SCHEMA_PATH = os.getenv("SCHEMA_PATH", "models/model_v1_schema.json")
+# Configuration — dual-mode: MLflow (default) or local file fallback
+MODEL_PATH = os.getenv("MODEL_PATH", "")  # If set, forces local mode
+SCHEMA_PATH = os.getenv("SCHEMA_PATH", "")
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v1")
 THRESHOLD = float(os.getenv("PRED_THRESHOLD", "0.5"))
 
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "")
+MLFLOW_MODEL_NAME = os.getenv("MLFLOW_MODEL_NAME", "fraud-model")
+MLFLOW_MODEL_STAGE = os.getenv("MLFLOW_MODEL_STAGE", "Production")
+
 model = None
 feature_cols = None
+_load_source = "unknown"   # Track where the model was loaded from
 
 
 @app.on_event("startup")
 def load_artifacts():
-    global model, feature_cols
-    model = load_model(MODEL_PATH)
-    schema = load_json(SCHEMA_PATH)
+    global model, feature_cols, MODEL_VERSION, _load_source
+
+    print("Starting up, loading model and schema...")
+    print(f"MLflow tracking URI: {MLFLOW_TRACKING_URI}"
+          f"Local model path: {MODEL_PATH}"
+          f"Available schema path: {_mlflow_available()}"
+          f"Local schema path: {SCHEMA_PATH}"
+          )
+    # ---- Strategy 1: MLflow Model Registry ----
+    if MLFLOW_TRACKING_URI and not MODEL_PATH and _mlflow_available():
+        print("Attempting to load model from MLflow...")
+        try:
+            logger.info("Attempting MLflow model load from %s", MLFLOW_TRACKING_URI)
+
+            print(f"Model loaded from MLflow: {MLFLOW_MODEL_NAME}@{MLFLOW_MODEL_STAGE}")
+
+            model = load_model_from_mlflow(
+                tracking_uri=MLFLOW_TRACKING_URI,
+                model_name=MLFLOW_MODEL_NAME,
+                stage_or_version=MLFLOW_MODEL_STAGE,
+            )
+
+            print(f"Model loaded from MLflow: {MLFLOW_MODEL_NAME}@{MLFLOW_MODEL_STAGE}")
+            print("model:", model)
+
+            # Try to load schema from MLflow artifacts
+            try:
+                schema = load_artifact_json_from_mlflow(
+                    tracking_uri=MLFLOW_TRACKING_URI,
+                    model_name=MLFLOW_MODEL_NAME,
+                    artifact_path="schema.json",
+                    stage_or_version=MLFLOW_MODEL_STAGE,
+                )
+                feature_cols = schema["features"]
+            except Exception:
+                # Fallback: derive features from model input schema if available
+                logger.warning("Could not load schema.json from MLflow, using default feature list")
+                feature_cols = ["Time", "Amount"] + [f"V{i}" for i in range(1, 29)]
+
+            # Resolve registry version for reporting
+            try:
+                import mlflow
+                from mlflow.tracking import MlflowClient
+
+                mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+                client = MlflowClient()
+                
+                if MLFLOW_MODEL_STAGE.isdigit():
+                    mv = client.get_model_version(MLFLOW_MODEL_NAME, int(MLFLOW_MODEL_STAGE))
+                else:
+                    # On utilise l'Alias au lieu du Stage
+                    try:
+                        mv = client.get_model_version_by_alias(MLFLOW_MODEL_NAME, MLFLOW_MODEL_STAGE)
+                    except:
+                        # Fallback si l'alias n'est pas encore utilisé
+                        versions = client.get_latest_versions(MLFLOW_MODEL_NAME, stages=[MLFLOW_MODEL_STAGE])
+                        mv = versions[0] if versions else None
+                        
+                if mv:
+                    MODEL_VERSION = f"mlflow-v{mv.version}"
+            except Exception as e:
+                logger.warning("Could not resolve model version detail: %s", e)
+                MODEL_VERSION = f"mlflow-{MLFLOW_MODEL_STAGE}"
+
+            _load_source = f"mlflow:{MLFLOW_MODEL_NAME}@{MLFLOW_MODEL_STAGE}"
+
+            logger.info(
+                "model_loaded_from_mlflow",
+                extra={
+                    "model_name": MLFLOW_MODEL_NAME,
+                    "stage": MLFLOW_MODEL_STAGE,
+                    "model_version": MODEL_VERSION,
+                    "threshold": THRESHOLD,
+                },
+            )
+            return  # Success — skip local fallback
+        except Exception as e:
+            logger.warning("MLflow load failed, falling back to local: %s", e)
+
+    # ---- Strategy 2: Local file (fallback) ----
+    local_model_path = MODEL_PATH or "models/model_v1.joblib"
+    local_schema_path = SCHEMA_PATH or "models/model_v1_schema.json"
+
+    model = load_model(local_model_path)
+    schema = load_json(local_schema_path)
     feature_cols = schema["features"]
+    _load_source = f"local:{local_model_path}"
 
     logger.info(
-        "model_loaded",
+        "model_loaded_from_local",
         extra={
-            "model_path": MODEL_PATH,
-            "schema_path": SCHEMA_PATH,
+            "model_path": local_model_path,
+            "schema_path": local_schema_path,
             "model_version": MODEL_VERSION,
             "threshold": THRESHOLD,
         },
@@ -97,7 +196,7 @@ def health():
     return {
         "status": "ok",
         "model_version": MODEL_VERSION,
-        "model_path": MODEL_PATH,
+        "load_source": _load_source,
         "timestamp_utc": datetime.utcnow().isoformat() + "Z",
     }
 

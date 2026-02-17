@@ -1,8 +1,11 @@
 # api/schemas.py
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict
 
 class PredictRequest(BaseModel):
+
+    model_config = ConfigDict(protected_namespaces=())  # ← Résout le warning model_version
+
     # The dataset has these as required columns
     Time: float = Field(..., ge=0)
     Amount: float = Field(..., ge=0)
@@ -39,6 +42,8 @@ class PredictRequest(BaseModel):
 
 
 class PredictResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())  # ← Résout le warning model_version
+
     model_version: str
     fraud_probability: float
     is_fraud: bool

@@ -18,7 +18,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from src.config import Settings
-from src.io_utils import save_json, save_model
+from src.io_utils import save_json, save_model, log_training_run_to_mlflow, _mlflow_available
 
 
 REQUIRED_COLUMNS = ["Time", "Amount", "Class"] + [f"V{i}" for i in range(1, 29)]
@@ -54,7 +54,14 @@ def main():
     parser.add_argument("--data-path", default=settings.data_path)
     parser.add_argument("--model-version", default="v1")
     parser.add_argument("--test-size", type=float, default=0.2)
+    parser.add_argument(
+        "--no-mlflow",
+        action="store_true",
+        help="Disable MLflow logging (local-only mode)",
+    )
     args = parser.parse_args()
+
+    use_mlflow = (not args.no_mlflow) and _mlflow_available()
 
     set_seeds(settings.seed)
 
@@ -116,7 +123,9 @@ def main():
 
     baseline = compute_baseline(X_train, feature_cols)
 
-    # Save artifacts (versioned)
+    # ------------------------------------------------------------------ #
+    # Save artifacts locally (always — serves as fallback)
+    # ------------------------------------------------------------------ #
     os.makedirs(settings.models_dir, exist_ok=True)
     model_path = os.path.join(settings.models_dir, f"model_{args.model_version}.joblib")
     metrics_path = os.path.join(settings.models_dir, f"model_{args.model_version}_metrics.json")
@@ -128,12 +137,50 @@ def main():
     save_json(schema_path, schema)
     save_json(baseline_path, baseline)
 
-    print("✅ Training complete")
-    print(f"Model:   {model_path}")
-    print(f"Metrics: {metrics_path}")
-    print(f"Schema:  {schema_path}")
-    print(f"Baseline:{baseline_path}")
-    print(f"ROC-AUC: {metrics['roc_auc']:.4f} | PR-AUC: {metrics['pr_auc']:.4f}")
+    print("✅ Training complete — local artifacts saved")
+    print(f"  Model:    {model_path}")
+    print(f"  Metrics:  {metrics_path}")
+    print(f"  Schema:   {schema_path}")
+    print(f"  Baseline: {baseline_path}")
+    print(f"  ROC-AUC:  {metrics['roc_auc']:.4f} | PR-AUC: {metrics['pr_auc']:.4f}")
+
+    # ------------------------------------------------------------------ #
+    # Log to MLflow (experiment tracking + model registry)
+    # ------------------------------------------------------------------ #
+    if use_mlflow:
+        try:
+            # input_example = X_test.iloc[:1].to_dict(orient="list")
+
+            run_id = log_training_run_to_mlflow(
+                tracking_uri=settings.mlflow_tracking_uri,
+                experiment_name=settings.mlflow_experiment_name,
+                registered_model_name=settings.mlflow_registered_model_name,
+                model=model,
+                params={
+                    "test_size": args.test_size,
+                    "seed": settings.seed,
+                    "max_iter": 200,
+                    "class_weight": "balanced",
+                    "n_features": len(feature_cols),
+                    "data_path": args.data_path,
+                },
+                metrics=metrics,
+                schema=schema,
+                baseline=baseline,
+                model_version_tag=args.model_version,
+                input_example=X_test.head(1),
+            )
+            print(f"\n🔬 MLflow run logged: {run_id}")
+            print(f"   Tracking UI: {settings.mlflow_tracking_uri}")
+            print(f"   Experiment:  {settings.mlflow_experiment_name}")
+            print(f"   Registered:  {settings.mlflow_registered_model_name}")
+        except Exception as e:
+            print(f"\n⚠️  MLflow logging failed (local artifacts are still saved): {e}")
+    else:
+        if args.no_mlflow:
+            print("\nℹ️  MLflow logging disabled (--no-mlflow flag)")
+        else:
+            print("\nℹ️  MLflow not available install with: pip install mlflow")
 
 
 if __name__ == "__main__":

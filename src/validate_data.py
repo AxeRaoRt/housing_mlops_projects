@@ -8,6 +8,7 @@ from datetime import datetime
 import pandas as pd
 
 from src.config import Settings
+from src.io_utils import _mlflow_available
 
 
 REQUIRED_COLUMNS = ["Time", "Amount", "Class"] + [f"V{i}" for i in range(1, 29)]
@@ -87,13 +88,46 @@ def validate(df: pd.DataFrame) -> dict:
     return report
 
 
+def _log_validation_to_mlflow(report: dict, report_path: str, settings: Settings) -> None:
+    """If an active MLflow run exists, log the validation report as artifact + tag."""
+    try:
+        import mlflow
+
+        mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+
+        # Log inside an existing run if available, otherwise create a standalone run
+        active_run = mlflow.active_run()
+        if active_run:
+            mlflow.log_artifact(report_path, artifact_path="reports")
+            passed = report.get("checks", {}).get("passed", False)
+            mlflow.set_tag("data_validation", "passed" if passed else "failed")
+            mlflow.log_metric("data_rows", report.get("rows", 0))
+            mlflow.log_metric("data_cols", report.get("cols", 0))
+            print("  📊 Validation report logged to active MLflow run")
+        else:
+            mlflow.set_experiment(settings.mlflow_experiment_name)
+            with mlflow.start_run(run_name="data-validation"):
+                mlflow.log_artifact(report_path, artifact_path="reports")
+                passed = report.get("checks", {}).get("passed", False)
+                mlflow.set_tag("data_validation", "passed" if passed else "failed")
+                mlflow.set_tag("run_type", "validation")
+                mlflow.log_metric("data_rows", report.get("rows", 0))
+                mlflow.log_metric("data_cols", report.get("cols", 0))
+            print("  📊 Validation report logged to MLflow (standalone run)")
+    except Exception as e:
+        print(f"  ⚠️  Could not log validation to MLflow: {e}")
+
+
 def main():
     settings = Settings()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-path", default=settings.data_path)
     parser.add_argument("--report-path", default=None, help="Optional explicit report output path")
+    parser.add_argument("--no-mlflow", action="store_true", help="Disable MLflow logging")
     args = parser.parse_args()
+
+    use_mlflow = (not args.no_mlflow) and _mlflow_available()
 
     df = pd.read_csv(args.data_path)
 
@@ -105,6 +139,10 @@ def main():
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
         print(f"✅ Data validation passed. Report written to: {report_path}")
+
+        if use_mlflow:
+            _log_validation_to_mlflow(report, report_path, settings)
+
         sys.exit(0)
     except Exception as e:
         # Even on failure, write a report with errors captured

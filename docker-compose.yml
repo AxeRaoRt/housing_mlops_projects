@@ -80,6 +80,22 @@ services:
     depends_on:
       - prometheus
 
+  # ---------- Streamlit UI ----------
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: fraud-ui
+    environment:
+      - API_URL=http://api:8001
+      - MLFLOW_URL=http://mlflow:5000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    volumes:
+      - ./data:/app/data
+
 volumes:
   grafana_data:
   mlflow_data:

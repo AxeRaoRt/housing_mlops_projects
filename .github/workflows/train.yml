@@ -1,0 +1,46 @@
+name: Train Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: "Model version tag (e.g. v3)"
+        required: true
+        default: "v3"
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Validate data
+        run: python -m src.validate_data --no-mlflow
+
+      - name: Train model (${{ github.event.inputs.model_version }})
+        run: |
+          python -m src.train \
+            --model-version ${{ github.event.inputs.model_version }} \
+            --no-mlflow
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-${{ github.event.inputs.model_version }}
+          path: models/
+
+      - name: Upload validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: reports/data_validation_report.json

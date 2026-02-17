@@ -1,10 +1,29 @@
 .venv/
-**/.venv/
-venv/
-**/venv/
 __pycache__/
 *.pyc
 .env
-data/creditcard.csv
+venv/
+
+# Data (too large for Git — use DVC or Git LFS)
 data/*.csv
-.venv/
+
+# Model artifacts (versioned via MLflow)
+models/*.joblib
+
+# Local MLflow / Grafana volumes
+mlflow/
+grafana_data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+*.egg-info/
+dist/
+build/

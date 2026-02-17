@@ -13,7 +13,7 @@ services:
       - PRED_THRESHOLD=0.01
       - LOG_LEVEL=INFO
     ports:
-      - "8001:8000"   # API now on 8001
+      - "8001:8000"
 
   prometheus:
     image: prom/prometheus:v2.54.0
@@ -21,14 +21,23 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
-      - "9092:9090"   # Prometheus now on 9091
+      - "9092:9090"
     depends_on:
       - api
 
   grafana:
     image: grafana/grafana:10.4.2
     container_name: fraud-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
     ports:
-      - "3002:3000"   # Grafana now on 3001
+      - "3002:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
+
+volumes:
+  grafana_data:

@@ -47,3 +47,27 @@ class PredictResponse(BaseModel):
     model_version: str
     fraud_probability: float
     is_fraud: bool
+
+
+class DriftRequest(BaseModel):
+    """Batch of transactions for drift detection."""
+    data: list[Dict[str, float]] = Field(..., min_length=2, description="List of transaction dicts")
+
+
+class DriftFeatureReport(BaseModel):
+    psi: float
+    psi_drifted: bool
+    actual_mean: float
+    baseline_mean: float
+    z_score: float
+    mean_drifted: bool
+
+
+class DriftResponse(BaseModel):
+    n_samples: int
+    n_features_checked: int
+    features_drifted_psi: list[str]
+    features_drifted_mean: list[str]
+    per_feature: Dict[str, DriftFeatureReport]
+    aggregate_psi: float
+    drift_detected: bool

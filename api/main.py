@@ -13,7 +13,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
 from pythonjsonlogger import jsonlogger
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 
 from src.io_utils import (
     load_json,
@@ -22,7 +22,8 @@ from src.io_utils import (
     load_model_from_mlflow,
     load_artifact_json_from_mlflow,
 )
-from api.schemas import PredictRequest, PredictResponse
+from src.drift import load_baseline, detect_drift
+from api.schemas import PredictRequest, PredictResponse, DriftRequest, DriftResponse
 
 
 # ---------- Logging (structured JSON) ----------
@@ -44,6 +45,9 @@ FRAUD_PREDICTIONS_TOTAL = Counter(
     "fraud_predictions_total",
     "Total predicted fraud transactions"
 )
+DRIFT_PSI_AGGREGATE = Gauge("drift_psi_aggregate", "Aggregate PSI score from last drift check")
+DRIFT_DETECTED = Gauge("drift_detected", "1 if drift was detected, 0 otherwise")
+DRIFT_FEATURES_COUNT = Gauge("drift_features_drifted", "Number of features with detected drift")
 
 
 
@@ -63,6 +67,8 @@ MLFLOW_MODEL_STAGE = os.getenv("MLFLOW_MODEL_STAGE", "Production")
 model = None
 feature_cols = None
 _load_source = "unknown"   # Track where the model was loaded from
+_baseline = None            # Drift detection baseline
+_last_drift_report = None   # Cache last drift report
 
 
 @app.on_event("startup")
@@ -234,3 +240,63 @@ def predict(payload: PredictRequest):
         fraud_probability=proba,
         is_fraud=is_fraud,
     )
+
+
+@app.post("/drift", response_model=DriftResponse)
+def drift_check(payload: DriftRequest):
+    """Run drift detection on a batch of transactions."""
+    global _baseline, _last_drift_report
+
+    # Load baseline on first call (or if not yet loaded)
+    if _baseline is None:
+        try:
+            _baseline = load_baseline(
+                local_path=os.getenv("DRIFT_BASELINE_PATH", "models/model_v1_baseline.json"),
+                mlflow_tracking_uri=MLFLOW_TRACKING_URI or None,
+                mlflow_model_name=MLFLOW_MODEL_NAME or None,
+                mlflow_stage=MLFLOW_MODEL_STAGE,
+            )
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=503, detail=f"Baseline not found: {e}")
+
+    live_df = pd.DataFrame(payload.data)
+
+    psi_threshold = float(os.getenv("DRIFT_PSI_THRESHOLD", "0.25"))
+    z_threshold = float(os.getenv("DRIFT_Z_THRESHOLD", "2.0"))
+
+    report = detect_drift(
+        live_df=live_df,
+        baseline=_baseline,
+        features=feature_cols,
+        psi_threshold=psi_threshold,
+        z_threshold=z_threshold,
+    )
+
+    # Update Prometheus gauges
+    DRIFT_PSI_AGGREGATE.set(report["aggregate_psi"])
+    DRIFT_DETECTED.set(1.0 if report["drift_detected"] else 0.0)
+    DRIFT_FEATURES_COUNT.set(
+        len(set(report["features_drifted_psi"]) | set(report["features_drifted_mean"]))
+    )
+
+    _last_drift_report = report
+
+    logger.info(
+        "drift_check",
+        extra={
+            "drift_detected": report["drift_detected"],
+            "aggregate_psi": report["aggregate_psi"],
+            "n_features_drifted": len(report["features_drifted_psi"]),
+            "n_samples": report["n_samples"],
+        },
+    )
+
+    return DriftResponse(**report)
+
+
+@app.get("/drift/latest")
+def drift_latest():
+    """Return the last drift report (or 404 if none yet)."""
+    if _last_drift_report is None:
+        raise HTTPException(status_code=404, detail="No drift check has been run yet.")
+    return _last_drift_report

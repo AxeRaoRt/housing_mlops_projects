@@ -17,6 +17,8 @@ import streamlit as st
 API_URL = os.getenv("API_URL", "http://localhost:8001")
 PRED_ENDPOINT = f"{API_URL}/predict"
 HEALTH_ENDPOINT = f"{API_URL}/health"
+DRIFT_ENDPOINT = f"{API_URL}/drift"
+DRIFT_LATEST_ENDPOINT = f"{API_URL}/drift/latest"
 MLFLOW_URL = os.getenv("MLFLOW_URL", "http://localhost:5001")
 
 ASSETS_DIR = Path(__file__).parent / "assets"
@@ -691,6 +693,88 @@ with c2:
         st.caption("Load a transaction first.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+st.write("")
+
+# -----------------------------
+# Data Drift Detection
+# -----------------------------
+st.markdown("<div class='card'><h3>📉 Data Drift Detection</h3>", unsafe_allow_html=True)
+
+drift_col1, drift_col2 = st.columns([1, 1])
+
+with drift_col1:
+    st.markdown("**Run a drift check** on a batch of transactions from the dataset.")
+    n_samples = st.slider("Number of samples for drift check", min_value=50, max_value=5000, value=500, step=50)
+
+    if st.button("🔍 Run Drift Check", use_container_width=True):
+        if DATA_PATH.exists():
+            df = pd.read_csv(DATA_PATH)
+            sample_df = df.sample(min(n_samples, len(df)), random_state=None)
+            # Drop target column if present
+            sample_df = sample_df.drop("Class", errors="ignore")
+            payload = {"data": sample_df.to_dict(orient="records")}
+            try:
+                resp = requests.post(DRIFT_ENDPOINT, json=payload, timeout=30)
+                if resp.status_code == 200:
+                    report = resp.json()
+                    st.session_state["drift_report"] = report
+                    st.success("Drift check completed!")
+                else:
+                    st.error(f"Drift check failed: {resp.status_code} — {resp.text}")
+            except Exception as e:
+                st.error(f"Drift check error: {e}")
+        else:
+            st.warning("data/creditcard.csv not found.")
+
+    # Also allow fetching the last drift report from the API
+    if st.button("📋 Fetch Latest Report", use_container_width=True):
+        try:
+            resp = requests.get(DRIFT_LATEST_ENDPOINT, timeout=5)
+            if resp.status_code == 200:
+                st.session_state["drift_report"] = resp.json()
+                st.success("Latest report loaded.")
+            else:
+                st.info("No drift report available yet. Run a drift check first.")
+        except Exception as e:
+            st.error(f"Could not fetch drift report: {e}")
+
+with drift_col2:
+    report = st.session_state.get("drift_report")
+    if report:
+        # KPI row
+        dk1, dk2, dk3 = st.columns(3)
+        dk1.metric("Aggregate PSI", f"{report['aggregate_psi']:.4f}")
+        dk2.metric("Drift Detected", "⚠️ YES" if report["drift_detected"] else "✅ NO")
+        dk3.metric("Features Drifted",
+                    len(set(report.get("features_drifted_psi", [])) | set(report.get("features_drifted_mean", []))))
+
+        # Per-feature table
+        if report.get("per_feature"):
+            feat_data = []
+            for feat_name, feat_info in report["per_feature"].items():
+                feat_data.append({
+                    "Feature": feat_name,
+                    "PSI": round(feat_info["psi"], 4),
+                    "PSI Drift": "⚠️" if feat_info["psi_drifted"] else "✅",
+                    "Z-Score": round(feat_info["z_score"], 3),
+                    "Mean Drift": "⚠️" if feat_info["mean_drifted"] else "✅",
+                    "Baseline μ": round(feat_info["baseline_mean"], 4),
+                    "Actual μ": round(feat_info["actual_mean"], 4),
+                })
+            feat_df = pd.DataFrame(feat_data)
+            st.dataframe(feat_df, use_container_width=True, hide_index=True)
+
+        if report.get("features_drifted_psi"):
+            st.warning(f"PSI-drifted features: {', '.join(report['features_drifted_psi'])}")
+        if report.get("features_drifted_mean"):
+            st.warning(f"Mean-drifted features: {', '.join(report['features_drifted_mean'])}")
+    else:
+        st.caption("No drift report yet. Click 'Run Drift Check' to analyze.")
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+st.write("")
 
 # -----------------------------
 # Footer imagery (optional)

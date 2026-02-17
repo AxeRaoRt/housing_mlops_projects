@@ -17,3 +17,8 @@ class Settings:
     mlflow_tracking_uri: str = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     mlflow_experiment_name: str = os.getenv("MLFLOW_EXPERIMENT_NAME", "fraud-detection")
     mlflow_registered_model_name: str = os.getenv("MLFLOW_MODEL_NAME", "fraud-model")
+
+    # Drift detection
+    drift_psi_threshold: float = float(os.getenv("DRIFT_PSI_THRESHOLD", "0.25"))
+    drift_z_threshold: float = float(os.getenv("DRIFT_Z_THRESHOLD", "2.0"))
+    drift_baseline_path: str = os.getenv("DRIFT_BASELINE_PATH", "models/model_v1_baseline.json")

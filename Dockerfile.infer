@@ -28,6 +28,7 @@ COPY api/ api/
 COPY src/config.py src/config.py
 COPY src/io_utils.py src/io_utils.py
 COPY src/predict.py src/predict.py
+COPY src/drift.py src/drift.py
 # COPY src/__init__.py src/__init__.py
 
 # Modèle local en fallback (optionnel)

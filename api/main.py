@@ -6,9 +6,6 @@ import logging
 import warnings
 from datetime import datetime
 
-# Suppress Pydantic protected namespace warning from MLflow internals
-warnings.filterwarnings("ignore", message="Field \"model_.*\" has conflict with protected namespace")
-
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
@@ -24,6 +21,9 @@ from src.io_utils import (
 )
 from src.drift import load_baseline, detect_drift
 from api.schemas import PredictRequest, PredictResponse, DriftRequest, DriftResponse
+
+# Suppress Pydantic protected namespace warning from MLflow internals
+warnings.filterwarnings("ignore", message="Field \"model_.*\" has conflict with protected namespace")
 
 
 # ---------- Logging (structured JSON) ----------

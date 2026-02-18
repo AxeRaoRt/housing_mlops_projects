@@ -168,7 +168,7 @@ def load_artifact_json_from_mlflow(
         # Chercher par ALIAS
         try:
             mv = client.get_model_version_by_alias(model_name, stage_or_version)
-        except:
+        except Exception:
             versions = client.get_latest_versions(model_name, stages=[stage_or_version])
             if not versions: 
                 raise ValueError(f"Not found: {model_name}@{stage_or_version}")

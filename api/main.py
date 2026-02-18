@@ -126,7 +126,7 @@ def load_artifacts():
                     # On utilise l'Alias au lieu du Stage
                     try:
                         mv = client.get_model_version_by_alias(MLFLOW_MODEL_NAME, MLFLOW_MODEL_STAGE)
-                    except:
+                    except Exception:
                         # Fallback si l'alias n'est pas encore utilisé
                         versions = client.get_latest_versions(MLFLOW_MODEL_NAME, stages=[MLFLOW_MODEL_STAGE])
                         mv = versions[0] if versions else None

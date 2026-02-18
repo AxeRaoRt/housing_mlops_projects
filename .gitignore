@@ -4,8 +4,8 @@ __pycache__/
 .env
 venv/
 
-# Data (too large for Git — use DVC or Git LFS)
-data/*.csv
+# Data — tracked via Git LFS (see .gitattributes)
+# data/*.csv
 
 # Model artifacts (versioned via MLflow)
 models/*.joblib

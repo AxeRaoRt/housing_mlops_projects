@@ -105,7 +105,7 @@ jobs:
     env:
       GAR_LOCATION: europe-west1 # Remplacez par votre région (ex: us-central1)
       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      REPOSITORY: my-app-repo # Le nom du dépôt créé dans Artifact Registry
+      REPOSITORY: mlops-depots # Le nom du dépôt créé dans Artifact Registry
       
     steps:
       - uses: actions/checkout@v4
@@ -135,7 +135,7 @@ jobs:
           docker build -f ${{ matrix.dockerfile }} \
             -t $BASE_URL:$VERSION \
             -t $BASE_URL:latest .
-            
+
           # On push les deux
           docker push $BASE_URL:$VERSION
           docker push $BASE_URL:latest

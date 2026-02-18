@@ -1,4 +1,3 @@
-# version: "3.8"
 
 services:
   # ---------- MLflow Tracking Server ----------
@@ -24,13 +23,9 @@ services:
       dockerfile: Dockerfile.infer
     container_name: fraud-api
     environment:
-      # MLflow-first model loading (comment out MODEL_PATH to use MLflow)
+      # MLflow-first model loading 
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - MLFLOW_MODEL_NAME=fraud-model
-      # - MLFLOW_MODEL_STAGE=Production
-      # Local fallback (uncomment to bypass MLflow)
-      # - MODEL_PATH=models/model_v1.joblib
-      # - SCHEMA_PATH=models/model_v1_schema.json
       - MODEL_VERSION=v1
       - PRED_THRESHOLD=0.01
       - LOG_LEVEL=INFO

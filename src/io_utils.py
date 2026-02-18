@@ -1,4 +1,3 @@
-# src/io_utils.py
 import json
 import logging
 import os
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------ #
-# Local I/O helpers (unchanged – kept as fallback)
+# Local I/O helpers 
 # ------------------------------------------------------------------ #
 
 def ensure_dir(path: str) -> None:
@@ -55,84 +54,6 @@ def _mlflow_available() -> bool:
     except ImportError:
         return False
 
-
-# def log_training_run_to_mlflow(
-#     *,
-#     tracking_uri: str,
-#     experiment_name: str,
-#     registered_model_name: str,
-#     model: Any,
-#     params: Dict[str, Any],
-#     metrics: Dict[str, Any],
-#     schema: Dict[str, Any],
-#     baseline: Dict[str, Any],
-#     model_version_tag: str = "v1",
-#     input_example: Optional[Any] = None,
-# ) -> str:
-#     """Log a full training run to MLflow and register the model.
-
-#     Returns the MLflow run_id.
-#     """
-
-#     mlflow.set_tracking_uri(tracking_uri)
-#     mlflow.set_experiment(experiment_name)
-
-#     with mlflow.start_run() as run:
-#         # --- Parameters ---
-#         mlflow.log_params(params)
-
-#         # --- Scalar metrics (flatten for MLflow) ---
-#         scalar_metrics = {
-#             k: v for k, v in metrics.items()
-#             if isinstance(v, (int, float))
-#         }
-#         mlflow.log_metrics(scalar_metrics)
-
-#         # --- Tags ---
-#         mlflow.set_tag("model_version_tag", model_version_tag)
-
-#         # --- Full metrics JSON as artifact ---
-#         with tempfile.TemporaryDirectory() as tmpdir:
-#             metrics_path = os.path.join(tmpdir, "metrics.json")
-#             with open(metrics_path, "w") as f:
-#                 json.dump(metrics, f, indent=2, default=str)
-#             mlflow.log_artifact(metrics_path)
-
-#         # --- Schema as artifact ---
-#         mlflow.log_dict(schema, artifact_file="schema.json")
-
-#         # --- Baseline as artifact ---
-#         mlflow.log_dict(baseline, artifact_file="baseline.json")
-
-
-#         mlflow.log_dict(metrics, artifact_file="metrics.json")
-
-#         # --- Préparer un input_example propre ---
-#         safe_example = None
-#         if input_example is not None:
-#             try:
-#                 if isinstance(input_example, pd.DataFrame):
-#                     safe_example = input_example.head(1)
-#                 elif isinstance(input_example, dict):
-#                     safe_example = pd.DataFrame({k: [v] for k, v in input_example.items()})
-#                 else:
-#                     safe_example = None
-#             except Exception:
-#                 safe_example = None
-
-#         # --- Model (register in Model Registry) ---
-#         mlflow.sklearn.log_model(
-#             sk_model=model,
-#             artifact_path="model",
-#             registered_model_name=registered_model_name,
-#             input_example=safe_example,
-#         )
-
-#         logger.info("MLflow run logged: run_id=%s, experiment=%s", run.info.run_id, experiment_name)
-#         return run.info.run_id
-
-# ...existing code...
-
 def log_training_run_to_mlflow(
     *,
     tracking_uri: str,
@@ -150,9 +71,6 @@ def log_training_run_to_mlflow(
 
     Returns the MLflow run_id.
     """
-    import mlflow
-    import mlflow.sklearn
-    from mlflow.tracking import MlflowClient
 
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
@@ -219,8 +137,6 @@ def log_training_run_to_mlflow(
         logger.info("MLflow run logged: run_id=%s, experiment=%s", run.info.run_id, experiment_name)
         return run.info.run_id
 
-# ...existing code...
-
 
 def load_model_from_mlflow(tracking_uri: str, model_name: str, stage_or_version: str = "Production"):
     mlflow.set_tracking_uri(tracking_uri)
@@ -246,22 +162,21 @@ def load_artifact_json_from_mlflow(
     mlflow.set_tracking_uri(tracking_uri)
     client = MlflowClient()
 
-    # Resolve the run_id from the model version
     if stage_or_version.isdigit():
         mv = client.get_model_version(model_name, int(stage_or_version))
     else:
-        # VERSION MLFLOW 3.x : Chercher par ALIAS
+        # Chercher par ALIAS
         try:
             mv = client.get_model_version_by_alias(model_name, stage_or_version)
         except:
-            # Fallback version 2.x si nécessaire
             versions = client.get_latest_versions(model_name, stages=[stage_or_version])
             if not versions: raise ValueError(f"Not found: {model_name}@{stage_or_version}")
             mv = versions[0]
-            
+
     run_id = mv.run_id
     local_path = mlflow.artifacts.download_artifacts(
         run_id=run_id,
         artifact_path=artifact_path,
     )
+
     return load_json(local_path)

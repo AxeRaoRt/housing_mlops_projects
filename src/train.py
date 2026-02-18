@@ -1,4 +1,3 @@
-# src/train.py
 import argparse
 import os
 import time

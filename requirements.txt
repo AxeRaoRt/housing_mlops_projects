@@ -14,7 +14,7 @@ prometheus-client==0.20.0
 python-json-logger==2.0.7
 
 # Experiment tracking
-mlflow
+mlflow==3.9.0
 
 # Utilities
 python-dotenv==1.0.1

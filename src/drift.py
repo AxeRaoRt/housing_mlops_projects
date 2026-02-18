@@ -1,22 +1,11 @@
-# src/drift.py
-"""
-Data drift detection module.
-
-Compares live/incoming feature distributions against the training baseline
-stored in MLflow artifacts or local JSON files.
-
-Supports:
-  - Population Stability Index (PSI) per feature
-  - Simple mean/std shift detection
-  - Aggregated drift score for alerting
-"""
-
 import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import argparse
+import json
 
 from src.config import Settings
 from src.io_utils import load_json, _mlflow_available, load_artifact_json_from_mlflow
@@ -209,7 +198,6 @@ def detect_drift(
 # ------------------------------------------------------------------ #
 
 def main():
-    import argparse
 
     settings = Settings()
 
@@ -237,8 +225,6 @@ def main():
         z_threshold=args.z_threshold,
     )
 
-    import json
-
     report_json = json.dumps(report, indent=2)
     print(report_json)
 
@@ -259,3 +245,17 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+# """
+# Data drift detection module.
+
+# Compares live/incoming feature distributions against the training baseline
+# stored in MLflow artifacts or local JSON files.
+
+# Supports:
+#   - Population Stability Index (PSI) per feature
+#   - Simple mean/std shift detection
+#   - Aggregated drift score for alerting
+# """

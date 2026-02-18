@@ -123,7 +123,7 @@ jobs:
 
       # 3. Build et Tag l'image
       # Le tag doit suivre le format : REGION-docker.pkg.dev/PROJECT/REPO/IMAGE:TAG
-      - name: Build and Tag
+      - name: Build, Push & Tag to GAR
         run: |
           # On définit la version (ex: v42)
           VERSION="v${{ github.run_number }}"
@@ -135,10 +135,9 @@ jobs:
           docker build -f ${{ matrix.dockerfile }} \
             -t $BASE_URL:$VERSION \
             -t $BASE_URL:latest .
-
-      # 4. Push vers GAR
-      - name: Push to GAR
-        run: |
+            
           # On push les deux
           docker push $BASE_URL:$VERSION
           docker push $BASE_URL:latest
+
+     

@@ -10,7 +10,7 @@ from src.io_utils import (
     load_json,
     load_model,
     _mlflow_available,
-    load_model_from_mlflow,
+    # load_model_from_mlflow,
     load_artifact_json_from_mlflow,
 )
 from src.config import Settings

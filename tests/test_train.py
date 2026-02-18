@@ -2,8 +2,8 @@
 """Smoke tests for src.train — trains on a tiny synthetic dataset."""
 import os
 import json
-import tempfile
-import shutil
+# import tempfile
+# import shutil
 import subprocess
 
 import numpy as np

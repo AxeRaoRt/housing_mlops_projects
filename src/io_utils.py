@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 import mlflow
 import mlflow.sklearn
 import mlflow
-import pandas as pd
+# import pandas as pd
 from mlflow.tracking import MlflowClient
 
 import joblib
@@ -170,7 +170,8 @@ def load_artifact_json_from_mlflow(
             mv = client.get_model_version_by_alias(model_name, stage_or_version)
         except:
             versions = client.get_latest_versions(model_name, stages=[stage_or_version])
-            if not versions: raise ValueError(f"Not found: {model_name}@{stage_or_version}")
+            if not versions: 
+                raise ValueError(f"Not found: {model_name}@{stage_or_version}")
             mv = versions[0]
 
     run_id = mv.run_id

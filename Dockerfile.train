@@ -1,22 +1,3 @@
-# FROM python:3.10-slim
-
-# WORKDIR /app
-
-# COPY requirements.txt .
-# RUN pip install --no-cache-dir -r requirements.txt
-
-# COPY . .
-
-# # MLflow tracking URI — override at runtime via docker-compose or CLI
-# ENV MLFLOW_TRACKING_URI=http://mlflow:5000
-# ENV MLFLOW_EXPERIMENT_NAME=fraud-detection
-# ENV MLFLOW_MODEL_NAME=fraud-model
-
-# ENTRYPOINT ["python", "-m", "src.train"]
-
-
-
-
 FROM python:3.10-slim
 
 WORKDIR /app

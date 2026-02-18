@@ -1,13 +1,12 @@
-# tests/test_api.py
-"""Integration tests for the FastAPI app using TestClient (no Docker needed)."""
 import pytest
 from fastapi.testclient import TestClient
+from api.main import app
 
+# Integration tests for the FastAPI app using TestClient 
 
 @pytest.fixture(scope="module")
 def client():
     """Create a TestClient — model loads on startup."""
-    from api.main import app
     with TestClient(app) as c:
         yield c
 

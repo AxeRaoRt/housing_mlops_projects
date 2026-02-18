@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       model_version:
-        description: "Model version tag (e.g. v3)"
+        description: "Model version tag"
         required: true
         default: "v3"
 

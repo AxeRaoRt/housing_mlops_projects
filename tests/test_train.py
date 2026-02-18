@@ -4,6 +4,7 @@ import os
 import json
 import tempfile
 import shutil
+import subprocess
 
 import numpy as np
 import pandas as pd
@@ -39,7 +40,7 @@ class TestTrainSmoke:
 
     def test_train_creates_artifacts(self):
         """Run src.train.main() via subprocess to avoid global state issues."""
-        import subprocess
+        
         result = subprocess.run(
             [
                 "python", "-m", "src.train",
@@ -70,7 +71,7 @@ class TestTrainSmoke:
 
     def test_train_schema_has_features(self):
         """Verify the schema lists all expected features."""
-        import subprocess
+
         result = subprocess.run(
             [
                 "python", "-m", "src.train",

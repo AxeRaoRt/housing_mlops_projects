@@ -8,7 +8,7 @@ venv/
 # data/*.csv
 
 # Model artifacts (versioned via MLflow)
-models/*.joblib
+# models/*.joblib
 
 # Local MLflow / Grafana volumes
 mlflow/

@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Code source — uniquement ce qui est nécessaire au training
 COPY src/ src/
 COPY data/ data/
+COPY models/ models/
 
 ENV GIT_PYTHON_REFRESH=quiet
 

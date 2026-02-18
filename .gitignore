@@ -27,3 +27,13 @@ Thumbs.db
 *.egg-info/
 dist/
 build/
+
+# Test caches
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Generated reports
+reports/*.json
+!reports/.gitkeep

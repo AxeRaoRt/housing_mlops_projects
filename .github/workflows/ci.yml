@@ -109,6 +109,8 @@ jobs:
       
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       # 1. Authentification Google Cloud
       - name: Google Auth
@@ -120,7 +122,13 @@ jobs:
         uses: google-github-actions/upload-cloud-storage@v2
         with:
           path: monitoring
-          destination: bucket-mlops-junia/monitoring
+          destination: bucket-mlops-junia
+
+      - name: Upload data to GCS
+        uses: google-github-actions/upload-cloud-storage@v2
+        with:
+          path: data
+          destination: bucket-mlops-junia
 
       # 2. Configurer Docker pour utiliser Google Artifact Registry
       - name: Docker Auth Config

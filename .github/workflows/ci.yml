@@ -159,6 +159,6 @@ jobs:
           curl -X POST \
           -H "Authorization: token ${{ secrets.MY_GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/AxeRaoRt/AxeRaoRt/housing_mlops_projects_deployment/actions/workflows/gcp-deploy.yml/dispatches \
-          -d '{"ref":"main", "inputs": {"image_tag": "v${{ github.run_number }}"}}'
+          https://api.github.com/repos/AxeRaoRt/housing_mlops_projects_deployment/actions/workflows/gcp-deploy.yml/dispatches \
+          -d '{"ref":"main", "inputs": {"image_tag": "latest"}}'
      
